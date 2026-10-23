@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Still — Text Summarizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink-0:#0B0F17;
+    --ink-1:#121826;
+    --ink-2:#1A2233;
+    --line:#2A3448;
+    --parchment:#F3ECDC;
+    --parchment-dim:#E7DEC7;
+    --teal:#4FA98C;
+    --teal-dim:#3A7C69;
+    --amber:#E8A33D;
+    --amber-deep:#B9721F;
+    --text-hi:#F0EEE6;
+    --text-mid:#A7ADBC;
+    --text-low:#6C7284;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(79,169,140,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(232,163,61,0.07), transparent 55%),
+      var(--ink-0);
+    color:var(--text-hi);
+    font-family:'Inter', sans-serif;
+    padding:56px 24px 90px;
+    overflow-x:hidden;
+  }
+
+  .motes{position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;}
+  .mote{position:absolute; width:3px; height:3px; border-radius:50%; background:var(--teal); opacity:0.35; animation:drift 18s linear infinite;}
+  .mote:nth-child(2){background:var(--amber); animation-duration:24s;}
+  .mote:nth-child(3){animation-duration:14s;}
+  .mote:nth-child(4){background:var(--amber); animation-duration:20s;}
+  .mote:nth-child(5){animation-duration:26s;}
+  @keyframes drift{
+    0%{transform:translateY(110vh) translateX(0); opacity:0;}
+    10%{opacity:0.35;}
+    90%{opacity:0.2;}
+    100%{transform:translateY(-10vh) translateX(40px); opacity:0;}
+  }
+
+  .wrap{max-width:920px; margin:0 auto; position:relative; z-index:1;}
+
+  /* ---------- hero ---------- */
+  .hero{text-align:center; margin-bottom:52px;}
+  .flask-mark{width:64px; height:78px; margin:0 auto 22px; display:block; opacity:0; animation:rise 0.9s cubic-bezier(.2,.8,.2,1) 0.1s forwards;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:0.28em; text-transform:uppercase;
+    color:var(--teal); margin:0 0 14px; opacity:0;
+    animation:rise 0.7s ease 0.25s forwards;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:clamp(40px, 6.4vw, 68px);
+    line-height:1.02;
+    margin:0 0 16px;
+    letter-spacing:-0.01em;
+    opacity:0;
+    animation:rise 0.8s cubic-bezier(.2,.8,.2,1) 0.35s forwards;
+  }
+  h1 em{font-style:italic; color:var(--amber); font-weight:300;}
+  .sub{
+    font-size:16px; color:var(--text-mid); max-width:480px; margin:0 auto;
+    opacity:0; animation:rise 0.8s ease 0.5s forwards;
+  }
+  @keyframes rise{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---------- bench (two columns) ---------- */
+  .bench{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:28px;
+    opacity:0; animation:rise 0.8s ease 0.65s forwards;
+  }
+  @media (max-width:760px){ .bench{grid-template-columns:1fr;} }
+
+  .panel{
+    border-radius:14px;
+    border:0.5px solid var(--line);
+    background:var(--ink-1);
+    padding:26px;
+    position:relative;
+  }
+  .panel-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--text-low); display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px;
+  }
+  .panel-label .tag{color:var(--teal);}
+
+  /* raw material panel — parchment textarea */
+  textarea{
+    width:100%; min-height:220px; resize:vertical;
+    background:var(--parchment);
+    color:#2A2418;
+    border:none; border-radius:8px;
+    padding:18px 20px;
+    font-family:'Fraunces', serif; font-size:16.5px; line-height:1.65;
+    background-image:repeating-linear-gradient(var(--parchment) 0px, var(--parchment) 31px, rgba(60,50,30,0.10) 32px);
+    line-height:32px; padding-top:14px;
+    outline:none;
+  }
+  textarea::placeholder{color:#8B806A; font-style:italic;}
+  textarea:focus{box-shadow:0 0 0 2px var(--teal-dim);}
+
+  .word-count{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-low);
+    margin-top:10px; display:flex; justify-content:space-between;
+  }
+
+  button.distill-btn{
+    margin-top:18px; width:100%;
+    background:var(--teal); color:#08201A;
+    border:none; border-radius:8px;
+    padding:14px 16px;
+    font-family:'Inter', sans-serif; font-weight:600; font-size:15px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+    position:relative; overflow:hidden;
+  }
+  button.distill-btn:hover{background:#5CC1A0; box-shadow:0 6px 20px -6px rgba(79,169,140,0.5);}
+  button.distill-btn:active{transform:scale(0.98);}
+  button.distill-btn:disabled{opacity:0.6; cursor:progress;}
+  .drop-icon{width:14px; height:14px; display:inline-block;}
+
+  .ripple{
+    position:absolute; border-radius:50%; background:rgba(255,255,255,0.35);
+    transform:scale(0); animation:ripple-anim 0.6s ease-out forwards;
+    pointer-events:none;
+  }
+  @keyframes ripple-anim{to{transform:scale(3); opacity:0;}}
+
+  /* distillate panel */
+  .distillate-body{
+    display:flex; gap:20px; align-items:flex-start;
+    min-height:220px;
+  }
+  .vial-wrap{flex:0 0 68px; display:flex; flex-direction:column; align-items:center;}
+  .vial{
+    width:44px; height:150px; position:relative;
+    border:2px solid var(--line);
+    border-top:none;
+    border-radius:0 0 22px 22px;
+    background:rgba(255,255,255,0.02);
+    overflow:hidden;
+  }
+  .vial::before{
+    content:'';
+    position:absolute; top:-2px; left:50%; transform:translateX(-50%);
+    width:16px; height:14px; border:2px solid var(--line); border-bottom:none;
+    border-radius:3px 3px 0 0;
+  }
+  .liquid{
+    position:absolute; left:0; right:0; bottom:0; height:6%;
+    background:linear-gradient(180deg, #F4C876 0%, var(--amber) 45%, var(--amber-deep) 100%);
+    transition:height 1.1s cubic-bezier(.3,.8,.3,1);
+  }
+  .liquid::after{
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:5px;
+    background:rgba(255,255,255,0.35);
+    animation:wobble 2.4s ease-in-out infinite;
+  }
+  @keyframes wobble{0%,100%{transform:translateY(0) scaleX(1);} 50%{transform:translateY(-1px) scaleX(1.04);}}
+  .bubble{
+    position:absolute; bottom:4px; width:4px; height:4px; border-radius:50%;
+    background:rgba(255,236,200,0.7); animation:bubble-rise 2.6s ease-in infinite;
+  }
+  @keyframes bubble-rise{
+    0%{transform:translateY(0) scale(0.6); opacity:0;}
+    15%{opacity:0.8;}
+    100%{transform:translateY(-120px) scale(1); opacity:0;}
+  }
+  .proof-badge{
+    margin-top:12px; font-family:'IBM Plex Mono', monospace; font-size:11px;
+    color:var(--amber); text-align:center; letter-spacing:0.04em;
+    opacity:0; transition:opacity 0.4s ease;
+  }
+  .proof-badge.show{opacity:1;}
+
+  .summary-box{flex:1; min-height:200px; display:flex; flex-direction:column;}
+  #summary-text{
+    font-size:15.5px; line-height:1.75; color:var(--text-hi); margin:0;
+    flex:1;
+  }
+  .placeholder-state{color:var(--text-low); font-style:italic; font-size:14.5px; line-height:1.7;}
+  .processing-state{color:var(--amber); font-size:14.5px; display:flex; align-items:center; gap:8px;}
+  .processing-state .dot{width:5px; height:5px; border-radius:50%; background:var(--amber); animation:pulse-dot 1s ease-in-out infinite;}
+  .processing-state .dot:nth-child(2){animation-delay:0.15s;}
+  .processing-state .dot:nth-child(3){animation-delay:0.3s;}
+  @keyframes pulse-dot{0%,100%{opacity:0.25; transform:scale(0.8);} 50%{opacity:1; transform:scale(1.15);}}
+
+  .cork-pop{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--teal);
+    margin-top:14px; opacity:0;
+  }
+  .cork-pop.show{opacity:1; animation:pop-in 0.5s cubic-bezier(.3,1.6,.4,1) forwards;}
+  @keyframes pop-in{0%{transform:translateY(6px) scale(0.9); opacity:0;} 60%{transform:translateY(-2px) scale(1.05);} 100%{transform:translateY(0) scale(1); opacity:1;}}
+
+  footer{text-align:center; margin-top:44px; font-size:12px; color:var(--text-low); font-family:'IBM Plex Mono', monospace;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="motes" aria-hidden="true">
+  <div class="mote" style="left:8%; animation-delay:0s;"></div>
+  <div class="mote" style="left:22%; animation-delay:3s;"></div>
+  <div class="mote" style="left:48%; animation-delay:6s;"></div>
+  <div class="mote" style="left:71%; animation-delay:1.5s;"></div>
+  <div class="mote" style="left:88%; animation-delay:8s;"></div>
+</div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <svg class="flask-mark" viewBox="0 0 64 78" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M25 4H39V26L54 60C56.5 65.5 52.5 72 46.5 72H17.5C11.5 72 7.5 65.5 10 60L25 26V4Z" stroke="#4FA98C" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M14 58C18 54 24 56 32 56C40 56 46 53 50 58L46.5 72H17.5L14 58Z" fill="#E8A33D" fill-opacity="0.85"/>
+      <line x1="22" y1="4" x2="42" y2="4" stroke="#4FA98C" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <p class="eyebrow">Distillation chamber</p>
+    <h1>Reduce any text<br>to its <em>essence</em></h1>
+    <p class="sub">Pour your raw material into the still. What drips out is the concentrate — same meaning, a fraction of the volume.</p>
+  </div>
+
+  <div class="bench">
+    <div class="panel">
+      <div class="panel-label"><span>Raw material</span><span class="tag" id="input-tag">Unprocessed</span></div>
+      <form id="summarization-form">
+        <textarea id="dialogue-input" placeholder="Set your text down here — an article, a transcript, a report. Anything with more words than it needs." required></textarea>
+        <div class="word-count"><span id="word-count">0 words</span><span id="char-count">0 characters</span></div>
+        <button type="submit" class="distill-btn" id="distill-btn">
+          <svg class="drop-icon" viewBox="0 0 14 14" fill="none"><path d="M7 1C7 1 2 7.5 2 9.8C2 12.1 4.2 14 7 14C9.8 14 12 12.1 12 9.8C12 7.5 7 1 7 1Z" fill="#08201A"/></svg>
+          Distill
+        </button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label"><span>Distillate</span><span class="tag" id="output-tag">Awaiting pour</span></div>
+      <div class="distillate-body">
+        <div class="vial-wrap">
+          <div class="vial">
+            <div class="liquid" id="liquid" style="height:4%;">
+              <div class="bubble" style="left:8px; animation-delay:0.2s;"></div>
+              <div class="bubble" style="left:22px; animation-delay:1.1s;"></div>
+              <div class="bubble" style="left:32px; animation-delay:0.6s;"></div>
+            </div>
+          </div>
+          <div class="proof-badge" id="proof-badge">— proof</div>
+        </div>
+        <div class="summary-box">
+          <p id="summary-text" class="placeholder-state">The condensed version will collect here once the still finishes its work.</p>
+          <div class="cork-pop" id="cork-pop">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1L7.5 4.5L11 5L8.5 7.5L9 11L6 9L3 11L3.5 7.5L1 5L4.5 4.5L6 1Z" fill="#4FA98C"/></svg>
+            Distillation complete
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>the still &middot; text summarization, condensed</footer>
+</div>
+
+<script>
+  const form = document.getElementById("summarization-form");
+  const dialogueInput = document.getElementById("dialogue-input");
+  const summaryText = document.getElementById("summary-text");
+  const submitButton = document.getElementById("distill-btn");
+  const liquid = document.getElementById("liquid");
+  const proofBadge = document.getElementById("proof-badge");
+  const corkPop = document.getElementById("cork-pop");
+  const inputTag = document.getElementById("input-tag");
+  const outputTag = document.getElementById("output-tag");
+  const wordCountEl = document.getElementById("word-count");
+  const charCountEl = document.getElementById("char-count");
+
+  function countWords(str){
+    const t = str.trim();
+    return t ? t.split(/\s+/).length : 0;
+  }
+
+  dialogueInput.addEventListener("input", () => {
+    const val = dialogueInput.value;
+    const words = countWords(val);
+    wordCountEl.textContent = words + (words === 1 ? " word" : " words");
+    charCountEl.textContent = val.length + " characters";
+    inputTag.textContent = words > 0 ? "Loaded" : "Unprocessed";
+  });
+
+  function naiveSummarize(text, targetSentences){
+    const sentences = text.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+    if (sentences.length <= targetSentences) return sentences.join(" ");
+    const words = text.toLowerCase().match(/[a-z']+/g) || [];
+    const stop = new Set(["the","a","an","and","or","but","of","to","in","on","for","is","are","was","were","it","this","that","with","as","at","by","be","have","has","had","from","its"]);
+    const freq = {};
+    words.forEach(w => { if(!stop.has(w)) freq[w] = (freq[w]||0)+1; });
+    const scored = sentences.map((s, i) => {
+      const ws = (s.toLowerCase().match(/[a-z']+/g) || []);
+      const score = ws.reduce((acc,w) => acc + (freq[w]||0), 0) / Math.max(ws.length,1);
+      return { s, i, score };
+    });
+    scored.sort((a,b) => b.score - a.score);
+    const picked = scored.slice(0, targetSentences).sort((a,b) => a.i - b.i);
+    return picked.map(p => p.s).join(" ");
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const dialogue = dialogueInput.value.trim();
+    if (!dialogue) return;
+
+    submitButton.disabled = true;
+    outputTag.textContent = "Distilling";
+    summaryText.classList.remove("placeholder-state");
+    summaryText.innerHTML = '<span class="processing-state">Condensing your text <span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
+    corkPop.classList.remove("show");
+    proofBadge.classList.remove("show");
+    liquid.style.height = "4%";
+
+    let progress = 4;
+    const riseInterval = setInterval(() => {
+      progress = Math.min(progress + Math.random() * 14, 88);
+      liquid.style.height = progress + "%";
+    }, 260);
+
+    const inputWords = countWords(dialogue);
+    let summary = null;
+
+    try {
+      const response = await fetch("/summarize/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dialogue }),
+      });
+      if (!response.ok) throw new Error("Server error: " + response.status);
+      const data = await response.json();
+      summary = data.summary || null;
+    } catch (err) {
+      const targetSentences = Math.max(1, Math.round(Math.max(inputWords / 40, 1)));
+      summary = naiveSummarize(dialogue, targetSentences);
+    }
+
+    clearInterval(riseInterval);
+    liquid.style.height = "92%";
+
+    setTimeout(() => {
+      summaryText.classList.remove("placeholder-state");
+      summaryText.textContent = summary || "No summary returned.";
+      outputTag.textContent = "Bottled";
+      submitButton.disabled = false;
+
+      const outputWords = countWords(summary || "");
+      if (inputWords > 0 && outputWords > 0) {
+        const reduction = Math.round((1 - outputWords / inputWords) * 100);
+        proofBadge.textContent = Math.max(reduction, 0) + "% proof";
+        proofBadge.classList.add("show");
+      }
+      corkPop.classList.add("show");
+    }, 450);
+  });
+
+  submitButton.addEventListener("click", function(e){
+    const rect = this.getBoundingClientRect();
+    const ripple = document.createElement("span");
+    ripple.className = "ripple";
+    const size = Math.max(rect.width, rect.height);
+    ripple.style.width = ripple.style.height = size + "px";
+    ripple.style.left = (e.clientX - rect.left - size/2) + "px";
+    ripple.style.top = (e.clientY - rect.top - size/2) + "px";
+    this.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 650);
+  });
+</script>
+
+</body>
+</html>
